@@ -89,7 +89,7 @@ export default function Header({ view, onGoDash, onGoAppts, onGoPatients, onGoMe
               PatientPad
             </span>
             <span style={{ fontSize: 12.5, color: '#7fd4c9', fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', minWidth: 0 }}>
-              · JD Dental
+              · Dr. Jain's Dental Polyclinic
             </span>
           </div>
           {avatarBtn(34)}
@@ -140,7 +140,7 @@ export default function Header({ view, onGoDash, onGoAppts, onGoPatients, onGoMe
               display: 'block', fontSize: 9.5, letterSpacing: '.16em', textTransform: 'uppercase',
               color: '#7fd4c9', fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
             }}>
-              JD Dental
+              Dr. Jain's Dental Polyclinic
             </span>
           </span>
         </div>

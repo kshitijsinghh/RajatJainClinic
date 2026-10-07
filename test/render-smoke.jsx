@@ -6,6 +6,7 @@ import { PrescriptionSheet, ReceiptSheet, previewSrc } from '../src/views/Clinic
 import { WaProvider } from '../src/whatsapp/WaContext.jsx';
 import { fmtClock, fmtDay, fmtDayOf } from '../src/whatsapp/ui.jsx';
 import { fitTop } from '../src/whatsapp/appointments/EventPopover.jsx';
+import { DAY_START_MIN, DAY_END_MIN } from '../src/whatsapp/appointments/WeekGrid.jsx';
 import { docVersionForAttempt } from '../src/whatsapp/DocSend.jsx';
 import { idempotencyKeyFor } from '../src/whatsapp/waApi.js';
 import { createElement as h } from 'react';
@@ -25,10 +26,10 @@ const receipt = {
 };
 
 const cases = [
-  ['PrescriptionSheet, no docx template', () => h(PrescriptionSheet, { rx, onClose() {}, clinicName: 'Indu Dental', clinicAddress: 'X', doctorName: 'Indu', doctorQualification: 'BDS', rxTemplateUrl: null, hasDocxTemplate: false })],
-  ['PrescriptionSheet, docx template',    () => h(PrescriptionSheet, { rx, onClose() {}, clinicName: 'Indu Dental', clinicAddress: 'X', doctorName: 'Indu', doctorQualification: 'BDS', rxTemplateUrl: null, hasDocxTemplate: true })],
-  ['ReceiptSheet, no docx template',      () => h(ReceiptSheet, { receipt, onClose() {}, clinicName: 'Indu Dental', clinicAddress: 'X', doctorName: 'Indu', hasReceiptTemplate: false })],
-  ['ReceiptSheet, docx template',         () => h(ReceiptSheet, { receipt, onClose() {}, clinicName: 'Indu Dental', clinicAddress: 'X', doctorName: 'Indu', hasReceiptTemplate: true })],
+  ['PrescriptionSheet, no docx template', () => h(PrescriptionSheet, { rx, onClose() {}, clinicName: 'Example Dental', clinicAddress: 'X', doctorName: 'Mehta', doctorQualification: 'BDS', rxTemplateUrl: null, hasDocxTemplate: false })],
+  ['PrescriptionSheet, docx template',    () => h(PrescriptionSheet, { rx, onClose() {}, clinicName: 'Example Dental', clinicAddress: 'X', doctorName: 'Mehta', doctorQualification: 'BDS', rxTemplateUrl: null, hasDocxTemplate: true })],
+  ['ReceiptSheet, no docx template',      () => h(ReceiptSheet, { receipt, onClose() {}, clinicName: 'Example Dental', clinicAddress: 'X', doctorName: 'Mehta', hasReceiptTemplate: false })],
+  ['ReceiptSheet, docx template',         () => h(ReceiptSheet, { receipt, onClose() {}, clinicName: 'Example Dental', clinicAddress: 'X', doctorName: 'Mehta', hasReceiptTemplate: true })],
 ];
 
 let pass = 0, fail = 0;
@@ -144,6 +145,18 @@ check('an anchor above the viewport is clamped to the gap',
   fitTop(-50, 300, VH) === 12, fitTop(-50, 300, VH));
 check('a missing anchor falls back to a sane default',
   fitTop(0, 300, VH) === 80, fitTop(0, 300, VH));
+
+
+/* ── Calendar hours ──────────────────────────────────────────────────────
+   The grid ended at 8 PM while clinics run evening sessions past 9. */
+
+check('the grid starts at 9 AM', DAY_START_MIN === 9 * 60, DAY_START_MIN);
+check('and runs to 10 PM, so a 9:30 PM slot fits inside it',
+  DAY_END_MIN >= 21 * 60 + 30 + 30, DAY_END_MIN);
+check('a late evening session (4:30 PM to 9:30 PM) is fully visible',
+  16 * 60 + 30 >= DAY_START_MIN && 21 * 60 + 30 <= DAY_END_MIN);
+check('a 9:30 PM appointment ends on or before the last gridline',
+  21 * 60 + 30 + 30 <= DAY_END_MIN, [21 * 60 + 60, DAY_END_MIN]);
 
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

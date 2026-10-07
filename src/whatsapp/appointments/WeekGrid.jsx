@@ -6,7 +6,10 @@ import { apptLook, apptStatus } from '../statusModel';
 import { fmtMin, parseYmd, todayYmd } from '../ui';
 
 export const DAY_START_MIN = 9 * 60;   // 9 AM
-export const DAY_END_MIN = 20 * 60;    // 8 PM
+// 10 PM, not 8. Evening sessions at these clinics run to 9:30, and a grid
+// that ends at the last appointment's start time clips the block drawn for
+// it — the slot has to fit, not just begin.
+export const DAY_END_MIN = 22 * 60;    // 10 PM
 export const PX_PER_HOUR = 60;
 const AXIS_W = 54;
 

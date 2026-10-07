@@ -83,7 +83,7 @@ export default function Login({ onAuth }) {
           fontSize: 12, letterSpacing: '.15em', textTransform: 'uppercase',
           color: '#5c7a76', fontWeight: 600, margin: '0 0 28px',
         }}>
-          JD Dental
+          Dr. Jain's Dental Polyclinic
         </p>
 
         {checking ? (

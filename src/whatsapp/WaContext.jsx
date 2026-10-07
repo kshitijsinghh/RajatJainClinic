@@ -2,10 +2,10 @@
 // which patients have turned messages off.
 //
 // A clinic that has not been switched on gets `enabled: false` and makes no
-// /whatsapp/* request for the lifetime of the session. That is what keeps
-// Nishant, Clover and Vaishnavi running exactly as they do today while Indu
-// and Raghav get the new tabs — the new code is present in their bundle but
-// never reaches the network, so there is nothing for it to break.
+// /whatsapp/* request for the lifetime of the session. That is what lets this
+// bundle ship to every clinic at once while the feature is turned on one at a
+// time: the new code is present but never reaches the network, so a clinic
+// still waiting on its rollout runs exactly as it did before.
 
 import { createContext, useContext, useEffect, useMemo, useState } from 'react';
 import { fetchWaConfig, waConfigured } from './waApi';
