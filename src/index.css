@@ -1,0 +1,100 @@
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+html, body, #root {
+  min-height: 100vh;
+}
+body {
+  font-family: 'Hanken Grotesk', system-ui, sans-serif;
+  background: #eef4f3;
+  color: #33534f;
+  -webkit-font-smoothing: antialiased;
+  line-height: 1.45;
+}
+input, select, textarea, button {
+  font-family: inherit;
+}
+a {
+  color: #0f8f86;
+  text-decoration: none;
+}
+a:hover {
+  color: #0b6f68;
+}
+::selection {
+  background: #bfe7e1;
+}
+input:focus, select:focus, textarea:focus {
+  outline: none;
+  border-color: #12a094 !important;
+  box-shadow: 0 0 0 3px rgba(18, 160, 148, 0.16);
+}
+.fld::placeholder {
+  color: #a9c1bc;
+}
+
+.action-btn:hover {
+  background: #0e756c !important;
+  color: #fff !important;
+  border-color: #0e756c !important;
+}
+
+/* Below this width, tables can't fit their columns without a sideways
+   scroll gesture inside a nested container that has no visible affordance
+   — that reads as broken, not scrollable. Swap to stacked cards instead. */
+.table-view {
+  display: block;
+}
+.card-view {
+  display: none;
+}
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* Hide number input spinners */
+input[type=number]::-webkit-inner-spin-button,
+input[type=number]::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+input[type=number] {
+  -moz-appearance: textfield;
+}
+
+@media (max-width: 760px) {
+  .table-view {
+    display: none;
+  }
+  .card-view {
+    display: block;
+  }
+  .stat-desktop-only {
+    display: none;
+  }
+}
+
+/* Print rules: show only the prescription/receipt sheet */
+@media print {
+  body * { visibility: hidden; }
+  #rx-overlay, #rx-overlay * { visibility: visible; }
+  #rx-overlay {
+    position: absolute !important;
+    inset: 0 !important;
+    background: none !important;
+    padding: 0 !important;
+  }
+  #rx-sheet {
+    border-radius: 0 !important;
+    box-shadow: none !important;
+    max-width: none !important;
+    margin: 0 !important;
+  }
+  #rx-chrome { display: none !important; }
+  /* The WhatsApp strip and the phone action bar live inside #rx-overlay, so
+     they are visible by the rule above and would otherwise be printed onto
+     the prescription itself. */
+  .wa-noprint { display: none !important; }
+}
