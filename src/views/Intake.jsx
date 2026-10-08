@@ -237,6 +237,19 @@ export default function Intake({
                 style={{ ...fieldStyle, minHeight: 62, resize: 'vertical' }}
               />
             </div>
+            {/* Optional, and left to last because it is the only field here a
+                patient is likely not to have to hand. */}
+            <div style={{ gridColumn: '1 / -1' }}>
+              <label style={labelStyle}>Email</label>
+              <input
+                className="fld" value={form.email || ''} onChange={(e) => onSetField('email', e.target.value)}
+                type="email" inputMode="email" autoComplete="off"
+                placeholder="name@example.com (optional)" style={fieldStyle}
+              />
+              <p style={{ margin: '6px 2px 0', fontSize: 12.5, color: '#8aa8a3' }}>
+                Lets the patient sign in to the portal with Google and see their own visits.
+              </p>
+            </div>
           </div>
 
           {intakeError && (

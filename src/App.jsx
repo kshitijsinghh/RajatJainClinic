@@ -163,7 +163,7 @@ export default function App({ user, onLogout }) {
   const [apptDate, setApptDate] = useState(today());
   const [showApptCal, setShowApptCal] = useState(false);
 
-  const [form, setForm] = useState({ mobile: '', name: '', age: '', gender: '', address: '', date: today() });
+  const [form, setForm] = useState({ mobile: '', name: '', age: '', gender: '', address: '', email: '', date: today() });
   const [lookupState, setLookupState] = useState('');
   const [existingPatientId, setExistingPatientId] = useState('');
   const [mobilePatients, setMobilePatients] = useState([]);
@@ -353,7 +353,7 @@ export default function App({ user, onLogout }) {
   }
   function goIntake() {
     pushView('intake');
-    setForm({ mobile: '', name: '', age: '', gender: '', address: '', date: today() });
+    setForm({ mobile: '', name: '', age: '', gender: '', address: '', email: '', date: today() });
     setLookupState('');
     setExistingPatientId('');
     setMobilePatients([]);
@@ -423,7 +423,7 @@ export default function App({ user, onLogout }) {
     // patientId is explicit: this is a new visit for a patient the user
     // picked by name, and on a shared family number the server cannot
     // work that out from the mobile alone.
-    const intakeData = { mobile: p.mobile, name: p.name, age: p.age, gender: p.gender, address: p.address || '', date: today(), patientId: pid };
+    const intakeData = { mobile: p.mobile, name: p.name, age: p.age, gender: p.gender, address: p.address || '', email: p.email || '', date: today(), patientId: pid };
     const optNo = p.visits.length + 1;
     const optVid = pid + '_' + optNo;
     const optVisit = { visitId: optVid, no: optNo, date: today(), done: false, clinical: null, createdAt: new Date().toISOString() };
@@ -436,7 +436,7 @@ export default function App({ user, onLogout }) {
     setSavedFlash(false);
     setClinicalError('');
     setClinicalReadOnly(false);
-    setForm({ mobile: '', name: '', age: '', gender: '', address: '', date: today() });
+    setForm({ mobile: '', name: '', age: '', gender: '', address: '', email: '', date: today() });
     setLookupState('');
     setExistingPatientId('');
     setMobilePatients([]);
@@ -477,7 +477,7 @@ export default function App({ user, onLogout }) {
     // record rather than an edit of the first.
     const intakeData = {
       mobile: mm, name: form.name.trim(), age: form.age, gender: form.gender,
-      address: (form.address || '').trim(), date: form.date,
+      address: (form.address || '').trim(), email: (form.email || '').trim(), date: form.date,
       patientId: existingP ? existingP.patientId : '',
       newPatient: !existingP,
     };
@@ -490,7 +490,7 @@ export default function App({ user, onLogout }) {
     if (existingP) {
       optDb.patients[optPid] = { ...existingP, visits: [...existingP.visits, optVisit] };
     } else {
-      optDb.patients[optPid] = { patientId: optPid, name: intakeData.name, age: intakeData.age, gender: intakeData.gender, address: intakeData.address, mobile: mm, visits: [optVisit] };
+      optDb.patients[optPid] = { patientId: optPid, name: intakeData.name, age: intakeData.age, gender: intakeData.gender, address: intakeData.address, email: intakeData.email, mobile: mm, visits: [optVisit] };
       optDb.order = [optPid, ...db.order];
       optDb.seq = db.seq + 1;
     }
@@ -503,7 +503,7 @@ export default function App({ user, onLogout }) {
     setSavedFlash(false);
     setClinicalError('');
     setClinicalReadOnly(false);
-    setForm({ mobile: '', name: '', age: '', gender: '', address: '', date: today() });
+    setForm({ mobile: '', name: '', age: '', gender: '', address: '', email: '', date: today() });
     setLookupState('');
     setExistingPatientId('');
     setMobilePatients([]);
@@ -539,7 +539,7 @@ export default function App({ user, onLogout }) {
   function onCreateNewVisitFromAppt(pid) {
     const p = db.patients[pid];
     if (!p) return;
-    setForm({ mobile: p.mobile, name: p.name, age: p.age, gender: p.gender, address: p.address || '', date: today() });
+    setForm({ mobile: p.mobile, name: p.name, age: p.age, gender: p.gender, address: p.address || '', email: p.email || '', date: today() });
     setLookupState('existing');
     setExistingPatientId(pid);
     setMobilePatients(findAllByMobile(db, p.mobile));

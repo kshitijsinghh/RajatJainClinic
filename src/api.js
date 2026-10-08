@@ -440,8 +440,8 @@ async function post(payload) {
 // patientId / newPatient say which patient on this number the intake is for.
 // Without them the server matched on the number alone and took the first row,
 // so adding a second person on a shared family phone edited the first one.
-export function saveIntake({ mobile, name, age, gender, address, date, patientId, newPatient }) {
-  const payload = { action: 'saveIntake', mobile, name, age, gender, address, date };
+export function saveIntake({ mobile, name, age, gender, address, email, date, patientId, newPatient }) {
+  const payload = { action: 'saveIntake', mobile, name, age, gender, address, email, date };
   if (patientId) payload.patientId = patientId;
   if (newPatient) payload.newPatient = true;
   return post(payload);

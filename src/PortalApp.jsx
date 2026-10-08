@@ -232,6 +232,53 @@ const SESSION_KEY = 'patient_session';
 const GENDERS = ['Male', 'Female', 'Other'];
 const CLINIC_NAME = 'PatientPad';
 
+// SMS one-time codes are built, tested and working; they are simply switched
+// off. Every clinic's patients are on WhatsApp, which costs the clinic less
+// and needs no Twilio account, so offering both only asked patients to make a
+// choice that has one sensible answer.
+//
+// Set VITE_PORTAL_SMS_OTP=true to bring the chooser back. Nothing else has to
+// change: requestPortalOtp, the verify path and the Firebase phone flow are
+// all left exactly as they are, and with the chooser hidden otpChannel simply
+// stays on its 'whatsapp' default.
+//
+// Exactly the string "true" switches it on. A flag that also accepted "1",
+// "yes" or "TRUE" would eventually be set to one of them somewhere and read as
+// off, and silently leaving SMS disabled is the failure nobody notices.
+export function smsOtpEnabled(env) {
+  return String((env && env.VITE_PORTAL_SMS_OTP) || '') === 'true';
+}
+
+const SMS_OTP_ENABLED = smsOtpEnabled(import.meta.env);
+
+// Extracted so the hidden case can be rendered on its own in a test: the
+// sign-in screen itself sits behind `loading`, which never clears without a
+// browser, so it cannot be reached by renderToString.
+export function OtpChannelChooser({ enabled, value, onChange }) {
+  if (!enabled) return null;
+  return (
+    <>
+      <label style={{ display: 'block', fontWeight: 700, fontSize: '13.5px', marginBottom: 7, color: '#0e3b39' }}>Where should we send your code?</label>
+      <div style={{ display: 'flex', gap: 8, marginBottom: 14 }}>
+        {[['whatsapp', 'WhatsApp'], ['sms', 'SMS']].map(([val, label]) => (
+          <button
+            key={val}
+            type="button"
+            onClick={() => onChange(val)}
+            style={{
+              flex: 1, padding: '11px 10px', borderRadius: 11, cursor: 'pointer',
+              fontWeight: 700, fontSize: '14px',
+              border: value === val ? '1.5px solid #0e756c' : '1px solid #d6e7e3',
+              background: value === val ? '#e6f4f2' : '#f7fbfa',
+              color: value === val ? '#0e756c' : '#5c7a76',
+            }}
+          >{label}</button>
+        ))}
+      </div>
+    </>
+  );
+}
+
 /* ─── tiny SVGs used across the portal ─── */
 const ClipboardIcon = () => (
   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round"><rect x="5" y="4" width="14" height="17" rx="2.5"/><path d="M9 4a3 3 0 0 1 6 0"/><path d="M9 12h6M9 16h4"/></svg>
@@ -365,7 +412,7 @@ export default function PortalApp() {
   const [myPatientId, setMyPatientId] = useState('');
 
   /* ── registration form ── */
-  const [reg, setReg] = useState({ mobile: '', name: '', age: '', gender: '', address: '' });
+  const [reg, setReg] = useState({ mobile: '', name: '', age: '', gender: '', address: '', email: '' });
   const [regError, setRegError] = useState('');
   const [regPickedId, setRegPickedId] = useState('');
   const [regAddingMember, setRegAddingMember] = useState(false);
@@ -523,7 +570,7 @@ export default function PortalApp() {
     } else {
       setMyPatientId('');
       setView('register');
-      setReg({ mobile: '', name: '', age: '', gender: '', address: '' });
+      setReg({ mobile: '', name: '', age: '', gender: '', address: '', email: '' });
       setRegError('');
       setRegPickedId('');
       setRegAddingMember(false);
@@ -601,7 +648,11 @@ export default function PortalApp() {
         // The server's message is already patient-facing — it says whether
         // this is a rate limit or a delivery failure, and never whether the
         // number belongs to a patient here.
-        setAuthError(errText(err, 'Could not send the code on WhatsApp. Try SMS instead.'));
+        // Not "try SMS instead" when SMS is switched off — pointing a patient
+        // at a button that is not on their screen reads as a broken app.
+        setAuthError(errText(err, SMS_OTP_ENABLED
+          ? 'Could not send the code on WhatsApp. Try SMS instead.'
+          : 'Could not send the code on WhatsApp. Please try again, or continue with Google below.'));
       } finally {
         setSendingOtp(false);
       }
@@ -774,7 +825,7 @@ export default function PortalApp() {
     } else {
       setMyPatientId('');
       setView('register');
-      setReg({ mobile, name: '', age: '', gender: '', address: '' });
+      setReg({ mobile, name: '', age: '', gender: '', address: '', email: '' });
       setRegError('');
       setRegPickedId('');
       setRegAddingMember(false);
@@ -846,9 +897,15 @@ export default function PortalApp() {
     // Optional, exactly as it is on the clinic console's intake form.
     const checkinAddress = regPickedId && db.patients[regPickedId]
       ? (db.patients[regPickedId].address || '') : (reg.address || '').trim();
+    // A Google sign-in has already proved an address, so it wins over anything
+    // typed — and the server overrides it to the token's address regardless.
+    // The typed field only has an effect after an OTP sign-in, where nothing
+    // has been proved and the patient is telling us where to reach them.
+    const checkinEmail = authedEmail
+      || (regPickedId && db.patients[regPickedId] ? (db.patients[regPickedId].email || '') : (reg.email || '').trim());
 
     try {
-      const res = await portalCheckin({ mobile, name: checkinName, age: checkinAge, gender: checkinGender, address: checkinAddress, email: authedEmail });
+      const res = await portalCheckin({ mobile, name: checkinName, age: checkinAge, gender: checkinGender, address: checkinAddress, email: checkinEmail });
       applySnapshot(res);
 
       const pid = res.patientId || db.order.find(id => {
@@ -863,7 +920,7 @@ export default function PortalApp() {
         setProblemSaved(false);
         setEditingProblem(false);
       }
-      setReg({ mobile: '', name: '', age: '', gender: '', address: '' });
+      setReg({ mobile: '', name: '', age: '', gender: '', address: '', email: '' });
       setRegPickedId('');
       setRegAddingMember(false);
       setIsAddingForFamily(false);
@@ -1317,23 +1374,13 @@ export default function PortalApp() {
                 ) : !otpStep ? (
                   <div style={{ marginTop: 20 }}>
                     <div style={{ textAlign: 'left' }}>
-                      <label style={{ display: 'block', fontWeight: 700, fontSize: '13.5px', marginBottom: 7, color: '#0e3b39' }}>Where should we send your code?</label>
-                      <div style={{ display: 'flex', gap: 8, marginBottom: 14 }}>
-                        {[['whatsapp', 'WhatsApp'], ['sms', 'SMS']].map(([val, label]) => (
-                          <button
-                            key={val}
-                            type="button"
-                            onClick={() => { setOtpChannel(val); setAuthError(''); }}
-                            style={{
-                              flex: 1, padding: '11px 10px', borderRadius: 11, cursor: 'pointer',
-                              fontWeight: 700, fontSize: '14px',
-                              border: otpChannel === val ? '1.5px solid #0e756c' : '1px solid #d6e7e3',
-                              background: otpChannel === val ? '#e6f4f2' : '#f7fbfa',
-                              color: otpChannel === val ? '#0e756c' : '#5c7a76',
-                            }}
-                          >{label}</button>
-                        ))}
-                      </div>
+                      {/* With SMS off there is only one place a code can go,
+                          so the question is not worth asking. */}
+                      <OtpChannelChooser
+                        enabled={SMS_OTP_ENABLED}
+                        value={otpChannel}
+                        onChange={(val) => { setOtpChannel(val); setAuthError(''); }}
+                      />
                       <label style={{ display: 'block', fontWeight: 700, fontSize: '13.5px', marginBottom: 7, color: '#0e3b39' }}>Mobile number</label>
                       <input
                         value={loginMobile}
@@ -1486,7 +1533,7 @@ export default function PortalApp() {
                       setRegAddingMember(false);
                       setRegPickedId('');
                       setRegError('');
-                      setReg(r => ({ ...r, name: '', age: '', gender: '' }));
+                      setReg(r => ({ ...r, name: '', age: '', gender: '', email: '' }));
                     }} style={{ border: '1px solid #cfe0f0', background: '#fff', color: '#3d6fb0', fontWeight: 700, fontSize: '12.5px', borderRadius: 8, padding: '7px 12px', cursor: 'pointer' }}>Cancel</button>
                   </div>
                 )}
@@ -1531,6 +1578,25 @@ export default function PortalApp() {
                         style={{ width: '100%', padding: '13px 14px', border: '1px solid #d6e7e3', borderRadius: 11, fontSize: 16, background: regPickedId ? '#f0f6f5' : '#f7fbfa', fontFamily: 'inherit', resize: 'vertical' }}
                       />
                     </div>
+                    {/* After a Google sign-in the address is already known and
+                        proved, so it is shown rather than asked for. After an
+                        OTP sign-in the box is empty and optional. */}
+                    <div>
+                      <label style={{ display: 'block', fontWeight: 700, fontSize: '13.5px', marginBottom: 7 }}>Email</label>
+                      <input
+                        className="fld" value={authedEmail || reg.email}
+                        onChange={e => setReg(r => ({ ...r, email: e.target.value }))}
+                        type="email" inputMode="email" autoComplete="email"
+                        placeholder="name@example.com (optional)"
+                        readOnly={!!regPickedId || !!authedEmail}
+                        style={{ width: '100%', padding: '13px 14px', border: '1px solid #d6e7e3', borderRadius: 11, fontSize: 16, background: (regPickedId || authedEmail) ? '#f0f6f5' : '#f7fbfa' }}
+                      />
+                      {!!authedEmail && (
+                        <p style={{ margin: '6px 2px 0', fontSize: '12.5px', color: '#8aa8a3' }}>
+                          From the Google account you signed in with.
+                        </p>
+                      )}
+                    </div>
                   </div>
                 )}
 
@@ -1539,7 +1605,7 @@ export default function PortalApp() {
                     setRegAddingMember(true);
                     setRegPickedId('');
                     setRegError('');
-                    setReg(r => ({ ...r, name: '', age: '', gender: '' }));
+                    setReg(r => ({ ...r, name: '', age: '', gender: '', email: '' }));
                   }} style={{ border: 0, background: 'none', color: '#8aa8a3', fontSize: '12.5px', fontWeight: 600, cursor: 'pointer', padding: 0, textAlign: 'left', textDecoration: 'underline', textUnderlineOffset: '2px' }}>
                     None of these? Add a new family member
                   </button>

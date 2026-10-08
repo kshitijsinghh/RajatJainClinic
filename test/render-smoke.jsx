@@ -8,6 +8,7 @@ import { fmtClock, fmtDay, fmtDayOf } from '../src/whatsapp/ui.jsx';
 import { fitTop } from '../src/whatsapp/appointments/EventPopover.jsx';
 import { DAY_START_MIN, DAY_END_MIN } from '../src/whatsapp/appointments/WeekGrid.jsx';
 import { docVersionForAttempt } from '../src/whatsapp/DocSend.jsx';
+import { smsOtpEnabled, OtpChannelChooser } from '../src/PortalApp.jsx';
 import { idempotencyKeyFor } from '../src/whatsapp/waApi.js';
 import { createElement as h } from 'react';
 
@@ -157,6 +158,37 @@ check('a late evening session (4:30 PM to 9:30 PM) is fully visible',
   16 * 60 + 30 >= DAY_START_MIN && 21 * 60 + 30 <= DAY_END_MIN);
 check('a 9:30 PM appointment ends on or before the last gridline',
   21 * 60 + 30 + 30 <= DAY_END_MIN, [21 * 60 + 60, DAY_END_MIN]);
+
+/* ── Portal sign-in: the SMS channel is switched off ─────────────────────
+   The code stays, so turning it back on is an env var rather than a change.
+   What must not happen is a half-hidden state: the chooser gone but SMS
+   still reachable, or — far worse — WhatsApp hidden along with it, which
+   would leave patients with no way to sign in at all. */
+
+check('an unset flag means SMS stays hidden', smsOtpEnabled({}) === false);
+check('...as does an absent env object', smsOtpEnabled(undefined) === false);
+check('"false" keeps it hidden', smsOtpEnabled({ VITE_PORTAL_SMS_OTP: 'false' }) === false);
+check('an empty string keeps it hidden', smsOtpEnabled({ VITE_PORTAL_SMS_OTP: '' }) === false);
+check('exactly "true" switches it on', smsOtpEnabled({ VITE_PORTAL_SMS_OTP: 'true' }) === true);
+check('a boolean true works too, in case it is set in code',
+  smsOtpEnabled({ VITE_PORTAL_SMS_OTP: true }) === true);
+for (const near of ['TRUE', 'True', '1', 'yes', 'on']) {
+  check(`${JSON.stringify(near)} is NOT treated as on`,
+    smsOtpEnabled({ VITE_PORTAL_SMS_OTP: near }) === false, near);
+}
+
+const chooser = (enabled) => renderToString(
+  h(OtpChannelChooser, { enabled, value: 'whatsapp', onChange() {} }));
+
+check('switched off, the chooser renders nothing at all', chooser(false) === '', chooser(false));
+check('...so the word SMS never reaches the patient', !/SMS/.test(chooser(false)));
+check('switched on, both channels are offered',
+  /WhatsApp/.test(chooser(true)) && /SMS/.test(chooser(true)), chooser(true));
+check('switched on, the question is asked again',
+  /Where should we send your code\?/.test(chooser(true)));
+check('the current channel is the one marked selected',
+  renderToString(h(OtpChannelChooser, { enabled: true, value: 'sms', onChange() {} }))
+    !== chooser(true));
 
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);
