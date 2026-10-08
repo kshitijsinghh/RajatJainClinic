@@ -2,13 +2,13 @@
 // error, a bad hook order or a missing import throws here — none of which a
 // Vite build or oxlint will tell you about.
 import { renderToString } from 'react-dom/server';
-import { PrescriptionSheet, ReceiptSheet, previewSrc } from '../src/views/Clinical.jsx';
+import { PrescriptionSheet, ReceiptSheet, previewSrc, PatientHealthPanel } from '../src/views/Clinical.jsx';
 import { WaProvider } from '../src/whatsapp/WaContext.jsx';
 import { fmtClock, fmtDay, fmtDayOf } from '../src/whatsapp/ui.jsx';
 import { fitTop } from '../src/whatsapp/appointments/EventPopover.jsx';
 import { DAY_START_MIN, DAY_END_MIN } from '../src/whatsapp/appointments/WeekGrid.jsx';
 import { docVersionForAttempt } from '../src/whatsapp/DocSend.jsx';
-import { smsOtpEnabled, OtpChannelChooser } from '../src/PortalApp.jsx';
+import { smsOtpEnabled, OtpChannelChooser, portalHistoryEnabled } from '../src/PortalApp.jsx';
 import { idempotencyKeyFor } from '../src/whatsapp/waApi.js';
 import { createElement as h } from 'react';
 
@@ -189,6 +189,65 @@ check('switched on, the question is asked again',
 check('the current channel is the one marked selected',
   renderToString(h(OtpChannelChooser, { enabled: true, value: 'sms', onChange() {} }))
     !== chooser(true));
+
+/* ── The doctor sees what the patient declared ───────────────────────────
+   Rendered rather than unit-tested, because the thing that matters is what
+   reaches the screen: a real allergy must appear in red once, a declared
+   "none" must appear in the grid as evidence the question was asked, and an
+   unanswered field must not appear at all. */
+
+const panel = (cform) => renderToString(h(PatientHealthPanel, { cform }));
+
+check('nothing filled in means no panel',
+  panel({}) === '' && panel(null) === '', panel({}));
+check('the doctor\'s own medical history does not raise the panel',
+  panel({ medicalHistory: 'Hypertension' }) === '');
+
+const alertPanel = panel({ patientProblem: 'Pain', patientAllergies: 'Penicillin' });
+check('a real allergy is announced', /Allergy:/.test(alertPanel) && /Penicillin/.test(alertPanel));
+check('...in the red alert colours', /#fdecea/.test(alertPanel) && /#b3261e/.test(alertPanel));
+check('...exactly once, not repeated in the grid below',
+  (alertPanel.match(/Penicillin/g) || []).length === 1, (alertPanel.match(/Penicillin/g) || []).length);
+check('...and the patient\'s problem is still shown',
+  /Today&#x27;s problem|Today's problem/.test(alertPanel) && /Pain/.test(alertPanel));
+
+const nonePanel = panel({ patientAllergies: 'NKDA' });
+check('a declared "none" raises no red alert', !/Allergy:/.test(nonePanel) && !/#fdecea/.test(nonePanel));
+check('...but is shown, so the doctor knows it was asked',
+  /NKDA/.test(nonePanel) && /Allergies/.test(nonePanel), nonePanel.slice(0, 120));
+
+// The prefix-match bug, as it would appear on screen.
+for (const v of ['Novocaine allergy', 'Nose drops', 'Nobivac']) {
+  const p = panel({ patientAllergies: v });
+  check(`${JSON.stringify(v)} reaches the doctor as a red alert`,
+    /Allergy:/.test(p) && p.includes(v), v);
+}
+for (const v of ['None', 'No', 'NKDA', 'No known allergies']) {
+  check(`${JSON.stringify(v)} does not trigger a false alarm`, !/Allergy:/.test(panel({ patientAllergies: v })), v);
+}
+
+const full = panel({
+  patientProblem: 'Pain lower left', patientMedicalHistory: 'Diabetes',
+  patientAllergies: 'Latex', patientDentalHistory: 'RCT 2022',
+});
+check('every declared field reaches the doctor',
+  ['Pain lower left', 'Diabetes', 'Latex', 'RCT 2022'].every((t) => full.includes(t)));
+check('the panel says where the information came from',
+  /Filled in by the patient at check-in/.test(full));
+
+/* ── Visit history can be switched off per clinic ────────────────────────
+   On by default and off only for exactly "false". The defaults run opposite
+   to the SMS flag on purpose: there the accident to avoid is leaving SMS on,
+   here it is hiding a patient's own records by mistake. */
+
+check('history is on when nothing is set', portalHistoryEnabled({}) === true);
+check('...and when there is no env at all', portalHistoryEnabled(undefined) === true);
+check('exactly "false" switches it off', portalHistoryEnabled({ VITE_PORTAL_HISTORY: 'false' }) === false);
+check('"true" leaves it on', portalHistoryEnabled({ VITE_PORTAL_HISTORY: 'true' }) === true);
+for (const near of ['FALSE', 'False', '0', 'no', 'off', '']) {
+  check(`${JSON.stringify(near)} does NOT hide a patient's records`,
+    portalHistoryEnabled({ VITE_PORTAL_HISTORY: near }) === true, near);
+}
 
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

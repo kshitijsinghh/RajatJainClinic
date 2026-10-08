@@ -8,6 +8,7 @@ import { getUploadUrl, uploadToS3, getDocumentUrl, generatePrescriptionPdf, gene
 import { DocPopupHeader, PhoneActionBar, SendStrip, useDocSend } from '../whatsapp/DocSend';
 import NextAppointmentNotice from '../whatsapp/NextAppointmentNotice';
 import { useIsPhone } from '../whatsapp/ui';
+import { anyHealthDetails, hasRealAllergy, healthRows } from '../health';
 
 // Rasterize a server-generated HTML document (fetched from its URL) into a jsPDF instance.
 async function renderUrlToPdf(url) {
@@ -477,6 +478,42 @@ function teethMapLabel(c, listField, mapField) {
   }).join(' · ');
 }
 function trTeethLabel(c) { return teethMapLabel(c, 'treatment', 'treatmentTeeth'); }
+
+
+// What the patient filled in at check-in, shown read-only above the doctor's
+// own fields. Exported so the allergy alert — the one piece of this screen
+// that changes what may safely be prescribed — can be rendered in a test.
+export function PatientHealthPanel({ cform }) {
+  const c = cform || {};
+  if (!anyHealthDetails(c)) return null;
+  return (
+    <div style={{ background: '#f2f9f8', border: '1px solid #cfe3df', borderRadius: 12, padding: '13px 15px', marginBottom: 16 }}>
+      <span style={{ display: 'flex', alignItems: 'center', gap: 7, fontSize: 11.5, fontWeight: 700, letterSpacing: '.05em', textTransform: 'uppercase', color: '#0e756c' }}>
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.1" strokeLinecap="round" strokeLinejoin="round"><path d="M21 11.5a8.4 8.4 0 0 1-9 8.4 9 9 0 0 1-3.3-.6L3 21l1.7-5a8.4 8.4 0 0 1-.7-3.5A8.4 8.4 0 0 1 12.5 3 8.4 8.4 0 0 1 21 11.5z"/></svg>
+        Filled in by the patient at check-in
+      </span>
+
+      {/* First, and in red, because it is the one line that changes what the
+          doctor may safely prescribe. */}
+      {hasRealAllergy(c.patientAllergies) && (
+        <div style={{ marginTop: 10, background: '#fdecea', border: '1px solid #f3c3bd', borderRadius: 10, padding: '9px 12px', display: 'flex', gap: 9, alignItems: 'flex-start' }}>
+          <span style={{ flexShrink: 0, width: 20, height: 20, borderRadius: '50%', background: '#b3261e', color: '#fff', fontWeight: 700, fontSize: 12, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>!</span>
+          <span style={{ fontSize: 14, color: '#7a1712' }}><strong>Allergy:</strong> {c.patientAllergies}</span>
+        </div>
+      )}
+
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '10px 18px', marginTop: 10 }}>
+        {healthRows(c, { skipRealAllergy: true }).map((r) => (
+          <div key={r.k}>
+            <span style={{ display: 'block', fontSize: 11.5, fontWeight: 700, color: '#5c7a76' }}>{r.k}</span>
+            <span style={{ display: 'block', fontSize: 14.5, color: '#0e3b39', textWrap: 'pretty' }}>{r.v}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 
 // One payment-split line per treatment marked in the Doctor's form, named like
 // "RCT (32, 21)" — or just "Composite Restoration" when no teeth are tagged.
@@ -1246,6 +1283,9 @@ export default function Clinical({
           { k: 'Lab tooth number', v: dash(nc.labToothNumber || listLabel(nc.toothNumber, '')) },
           { k: 'Lab description', v: dash(nc.labDescription) },
           { k: "Patient's complaint", v: dash(nc.patientProblem) },
+          { k: 'Medical history (patient)', v: dash(nc.patientMedicalHistory) },
+          { k: 'Allergies (patient)', v: dash(nc.patientAllergies) },
+          { k: 'Dental history (patient)', v: dash(nc.patientDentalHistory) },
         ],
         docs: (nc.documents || []).map((d, i) => ({ ...d, idx: i, isImage: /^image/i.test(d.type), href: d.dataUrl || '', s3Key: d.s3Key || '' })),
         hasDocs: (nc.documents || []).length > 0,
@@ -1346,16 +1386,7 @@ export default function Clinical({
         <div style={{ background: '#fff', border: '1px solid #dfece9', borderRadius: 18, padding: 24, marginTop: 16 }}>
           <h3 style={{ ...h3Style, marginBottom: 16 }}>Doctor's form</h3>
 
-          {/* Patient complaint (read-only) */}
-          {!!cform.patientProblem && (
-            <div style={{ background: '#f2f9f8', border: '1px solid #cfe3df', borderRadius: 12, padding: '13px 15px', marginBottom: 16 }}>
-              <span style={{ display: 'flex', alignItems: 'center', gap: 7, fontSize: 11.5, fontWeight: 700, letterSpacing: '.05em', textTransform: 'uppercase', color: '#0e756c' }}>
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.1" strokeLinecap="round" strokeLinejoin="round"><path d="M21 11.5a8.4 8.4 0 0 1-9 8.4 9 9 0 0 1-3.3-.6L3 21l1.7-5a8.4 8.4 0 0 1-.7-3.5A8.4 8.4 0 0 1 12.5 3 8.4 8.4 0 0 1 21 11.5z"/></svg>
-                Patient's complaint · submitted by patient
-              </span>
-              <p style={{ fontSize: 14.5, color: '#0e3b39', marginTop: 7 }}>{cform.patientProblem}</p>
-            </div>
-          )}
+          <PatientHealthPanel cform={cform} />
 
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 16 }}>
             <div style={{ gridColumn: '1 / -1' }}>

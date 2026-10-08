@@ -479,8 +479,17 @@ export function portalCheckin({ mobile, name, age, gender, address, email }) {
   return post({ action: 'portalCheckin', mobile, name, age, gender, address, email });
 }
 
-export function savePatientProblem({ patientId, visitId, patientProblem }) {
-  return post({ action: 'savePatientProblem', patientId, visitId, patientProblem });
+// The patient's own health details for today's visit. Named for the single
+// field it used to carry; it now carries all four, and the three new ones are
+// only persisted by an Apps Script deployment that knows about them.
+export function savePatientProblem({
+  patientId, visitId, patientProblem,
+  patientMedicalHistory, patientAllergies, patientDentalHistory,
+}) {
+  return post({
+    action: 'savePatientProblem', patientId, visitId, patientProblem,
+    patientMedicalHistory, patientAllergies, patientDentalHistory,
+  });
 }
 
 export function savePayment({ visitId, patientId, patientName, mobile, date, treatmentCost, amountPaid, balanceDue, paymentMode, paySplits, clinicId }) {

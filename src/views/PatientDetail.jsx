@@ -81,6 +81,9 @@ function buildDetailRows(v, p) {
   add('Lab tooth number', c.labToothNumber || listLabel(c.toothNumber));
   add('Lab description', c.labDescription);
   add("Patient's complaint", c.patientProblem);
+  add('Medical history (patient)', c.patientMedicalHistory);
+  add('Allergies (patient)', c.patientAllergies);
+  add('Dental history (patient)', c.patientDentalHistory);
   return { rows };
 }
 

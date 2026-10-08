@@ -102,7 +102,10 @@ function errText(err, fallback) {
 }
 function blankClinical() {
   return {
-    chiefComplaint: [], chiefDescription: '', patientProblem: '', medicalHistory: '',
+    chiefComplaint: [], chiefDescription: '', medicalHistory: '',
+    // Written by the patient at check-in, never by the doctor. Kept apart
+    // from medicalHistory above, which is the doctor's own clinical note.
+    patientProblem: '', patientMedicalHistory: '', patientAllergies: '', patientDentalHistory: '',
     diagnosis: '', investigation: '',
     toothNumber: [], treatmentTeeth: {}, advisedTeeth: {},
     treatmentGroup: [], treatment: [], treatmentOther: '',
@@ -226,6 +229,9 @@ export default function App({ user, onLogout }) {
           labToothNumber: savedForm.labToothNumber || '',
           labDescription: savedForm.labDescription || '',
           patientProblem: savedForm.patientProblem || v.clinical?.patientProblem || '',
+          patientMedicalHistory: savedForm.patientMedicalHistory || v.clinical?.patientMedicalHistory || '',
+          patientAllergies: savedForm.patientAllergies || v.clinical?.patientAllergies || '',
+          patientDentalHistory: savedForm.patientDentalHistory || v.clinical?.patientDentalHistory || '',
           medicines: savedForm.medicines || [],
           paySplits: savedForm.paySplits || [],
           documents: savedForm.documents || [],
